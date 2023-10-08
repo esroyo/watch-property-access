@@ -1,15 +1,19 @@
 # watch-property-access
 
+[![codecov](https://codecov.io/gh/esroyo/watch-property-access/graph/badge.svg?token=3E8LSQ50FS)](https://codecov.io/gh/esroyo/watch-property-access)
+
+A simple utility to register deep access to properties of an object.
+
 ## Example usage
 
 ```js
 import { watchPropertyAccess } from './src/main.ts';
 
 const testObj = {
-  foo: 'foo',
-  bar: {
-    baz: [1, 2, 3],
-  },
+    foo: 'foo',
+    bar: {
+        baz: [1, 2, 3],
+    },
 };
 
 /* Wrap your object and use it as normal */
