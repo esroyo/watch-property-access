@@ -1,5 +1,18 @@
 const registryTag = '@@registry';
 
+type WatchPropertyAccessOptions = {
+    /**
+     * Register only own property accesses.
+     * Defaults to true.
+     */
+    onlyOwnProperty?: boolean;
+    /**
+     * Summarize array index accesses.
+     * Defaults to true.
+     */
+    compact?: boolean;
+};
+
 type RegistryItem = {
     property: string;
     counters: {
@@ -11,7 +24,7 @@ type RegistryItem = {
 
 type Registry = Map<string, RegistryItem>;
 
-type TraceAccess<T = any> =
+type ProxyObject<T = any> =
     & T
     & { [registryTag]: Registry };
 
@@ -32,12 +45,29 @@ function isNumeric(possiblyNumeric: string | symbol): boolean {
         Number.isFinite(Number(possiblyNumeric));
 }
 
-function _watchAccess<T extends object>(
+function buildPath(path: string, property: string | symbol, compact: boolean) {
+    const isArrayAccess = isNumeric(property);
+    const effectiveAccumulatedPath = isArrayAccess && path.slice(-1) === '.'
+        ? path.slice(0, -1)
+        : path;
+    const defaultString = String(property);
+    const effectiveString = isArrayAccess
+        ? (compact ? '[]' : `[${defaultString}]`)
+        : defaultString;
+    const finalPath = `${effectiveAccumulatedPath}${effectiveString}`;
+    return finalPath;
+}
+
+function _watchPropertyAccess<T extends object>(
     target: T,
-    onlyOwnProperty: boolean,
+    options: Required<WatchPropertyAccessOptions>,
     registry: Registry,
     path: string,
-): TraceAccess<T> {
+): ProxyObject<T> {
+    const {
+        compact,
+        onlyOwnProperty,
+    } = options;
     return new Proxy(target, {
         get(...args) {
             const [target, property, receiver] = args;
@@ -49,9 +79,7 @@ function _watchAccess<T extends object>(
             const value = Reflect.get(...args);
             const valueType = typeof value;
             if (shouldRegister) {
-                const fullPath = `${path}${
-                    isNumeric(property) ? '[]' : String(property)
-                }`;
+                const fullPath = buildPath(path, property, compact);
                 let registryItem = registry.get(fullPath);
                 if (!registryItem) {
                     registryItem = createRegistryItem(fullPath);
@@ -67,9 +95,9 @@ function _watchAccess<T extends object>(
                     if (desc && !desc.writable && !desc.configurable) {
                         return value;
                     }
-                    return _watchAccess(
+                    return _watchPropertyAccess(
                         value,
-                        onlyOwnProperty,
+                        options,
                         registry,
                         `${fullPath}.`,
                     );
@@ -79,9 +107,7 @@ function _watchAccess<T extends object>(
         },
         set(...args) {
             const [target, property, value, receiver] = args;
-            const fullPath = `${path}${
-                isNumeric(property) ? '[]' : String(property)
-            }`;
+            const fullPath = buildPath(path, property, compact);
             if (property === registryTag) {
                 return false;
             }
@@ -94,12 +120,20 @@ function _watchAccess<T extends object>(
             registryItem.counters.total += 1;
             return Reflect.set(...args);
         },
-    }) as TraceAccess<T>;
+    }) as ProxyObject<T>;
 }
+
+const defaultOptions: WatchPropertyAccessOptions = {
+    onlyOwnProperty: true,
+    compact: true,
+};
 
 export function watchPropertyAccess<T extends object>(
     target: T,
-    onlyOwnProperty = true,
-): TraceAccess<T> {
-    return _watchAccess(target, onlyOwnProperty, new Map(), '');
+    options?: WatchPropertyAccessOptions,
+): ProxyObject<T> {
+    const effectiveOptions = { ...defaultOptions, ...options } as Required<
+        WatchPropertyAccessOptions
+    >;
+    return _watchPropertyAccess(target, effectiveOptions, new Map(), '');
 }

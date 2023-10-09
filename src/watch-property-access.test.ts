@@ -1,9 +1,5 @@
-import {
-    assert,
-    assertEquals,
-    assertExists,
-} from 'https://deno.land/std@0.203.0/testing/asserts.ts';
-import { watchPropertyAccess } from './main.ts';
+import { assert, assertEquals, assertExists } from '../dev_deps.ts';
+import { watchPropertyAccess } from './watch-property-access.ts';
 
 Deno.test('should register plain prop get access', () => {
     const target = {
@@ -49,7 +45,7 @@ Deno.test('should register only own properties access by default', () => {
     assertEquals(proxied['@@registry'].get('foo.bar.baz.map'), undefined);
 });
 
-Deno.test('should register non-own properties accesses when using ownProperty=false option', () => {
+Deno.test('should register non-own properties accesses when using onlyOwnProperty=false option', () => {
     const target = {
         foo: {
             bar: {
@@ -57,13 +53,51 @@ Deno.test('should register non-own properties accesses when using ownProperty=fa
             },
         },
     };
-    const proxied = watchPropertyAccess(target, false);
+    const proxied = watchPropertyAccess(target, { onlyOwnProperty: false });
     assertEquals(proxied.foo.bar.baz.map((value) => parseInt(value)), [1]);
     assertEquals(proxied['@@registry'].get('foo.bar.baz')?.counters?.total, 1);
     assertEquals(proxied['@@registry'].get('foo.bar.baz')?.counters?.get, 1);
     assertEquals(proxied['@@registry'].get('foo.bar.baz')?.counters?.set, 0);
     assertEquals(
         proxied['@@registry'].get('foo.bar.baz.map')?.counters?.get,
+        1,
+    );
+});
+
+Deno.test('should register array accesses without index by default', () => {
+    const target = {
+        foo: {
+            bar: {
+                baz: ['1', '2'],
+            },
+        },
+    };
+    const proxied = watchPropertyAccess(target);
+    assertEquals(proxied.foo.bar.baz[0], '1');
+    assertEquals(proxied.foo.bar.baz[1], '2');
+    assertEquals(
+        proxied['@@registry'].get('foo.bar.baz[]')?.counters?.total,
+        2,
+    );
+});
+
+Deno.test('should register array accesses with index when using compact=false option', () => {
+    const target = {
+        foo: {
+            bar: {
+                baz: ['1', '2'],
+            },
+        },
+    };
+    const proxied = watchPropertyAccess(target, { compact: false });
+    assertEquals(proxied.foo.bar.baz[0], '1');
+    assertEquals(proxied.foo.bar.baz[1], '2');
+    assertEquals(
+        proxied['@@registry'].get('foo.bar.baz[0]')?.counters?.total,
+        1,
+    );
+    assertEquals(
+        proxied['@@registry'].get('foo.bar.baz[1]')?.counters?.total,
         1,
     );
 });
