@@ -9,7 +9,8 @@
     "tasks": {
         "build": "npx esbuild src/main.ts --outfile=dist/index.js",
         "coverage": "rm -rf coverage && deno test --reporter=dot --coverage=coverage && deno coverage --lcov --output=coverage.lcov coverage && genhtml -o coverage/report coverage.lcov",
-        "dev": "deno run --watch src/main.ts"
+        "dev": "deno run --watch src/main.ts",
+        "tag-version": "npx commit-and-tag-version && git push --follow-tags origin main"
     },
     "fmt": {
         "indentWidth": 4,

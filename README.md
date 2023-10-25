@@ -1,6 +1,6 @@
 # watch-property-access
 
-[![codecov](https://codecov.io/gh/esroyo/watch-property-access/graph/badge.svg?token=3E8LSQ50FS)](https://codecov.io/gh/esroyo/watch-property-access)
+[![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/watch_property_access/mod.ts) [![codecov](https://codecov.io/gh/esroyo/watch-property-access/graph/badge.svg?token=3E8LSQ50FS)](https://codecov.io/gh/esroyo/watch-property-access)
 
 A simple utility to register deep access to properties of an object.
 
@@ -18,34 +18,40 @@ const testObj = {
 
 /* Wrap your object and use it as usual */
 
-const proxy = watchPropertyAccess(testObj);
+const testObjProxy = watchPropertyAccess(testObj);
 
 /* Make some accesses (get) */
 
-proxy.foo;
-proxy.bar.baz[0];
+testObjProxy.foo;
+testObjProxy.bar.baz[0];
 
 /* Make some accesses (set) */
 
-proxy.bar.baz[0] = 4;
+testObjProxy.bar.baz[0] = 4;
 
-/* "@@registry" property gets the registry Map */
+/**
+ * "@@registry" property stores the registry Map.
+ *
+ * Let's show all the properties accessed so far..
+ */
 
 console.log(
-    [...proxy['@@registry'].keys()]
+    [...testObjProxy['@@registry'].keys()]
 );
 
 // [ "foo", "bar", "bar.baz", "bar.baz.[]" ]
 
 /**
- * Each item in the map has a key with dot-notation and a counter object
- * that keeps track of the amount and the type of accesses.
- * "bar.baz.[]" array has had a total of 2 accesses,
- * 1 get operation and 1 set operation.
+ * Each entry of the map has a key (string) representing the accessed
+ * property with dot-notation and a value (object) with metadata
+ * about the amount and the type of accesses.
+ *
+ * For example "bar.baz.[]" property (array) has had a total of 2 accesses:
+ * 1 get operation + 1 set operation.
  */
 
 console.log(
-    proxy['@@registry'].get('bar.baz.[]')
+    testObjProxy['@@registry'].get('bar.baz.[]')
 );
 
 // { counters: { get: 1, set: 1, total: 2 }, property: "bar.baz.[]" }
